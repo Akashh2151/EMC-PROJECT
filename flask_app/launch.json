@@ -1,0 +1,22 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Flask",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/FLASK_APP/app.py",
+            "args": [],
+            "env": {
+                "FLASK_APP": "app.py",  // Assuming your main Flask app is in app.py
+                "FLASK_ENV": "development"
+            },
+            "cwd": "${workspaceFolder}/FLASK_APP",
+            "stopOnEntry": false,
+            "pythonPath": "${config:python.pythonPath}",
+            "debugOptions": [
+                "RedirectOutput"
+            ]
+        }
+    ]
+}
