@@ -1,78 +1,51 @@
-import mysql.connector
-from werkzeug.security import generate_password_hash, check_password_hash
+from app import app
+from flask import Flask, request, jsonify
+from pymongo import MongoClient
+from werkzeug.security import check_password_hash,generate_password_hash
+import datetime
+
+# Initialize MongoDB connection
+client = MongoClient("mongodb://localhost:27017/")
+db = client["emc_project"]
+collection = db["signup"]
+
+class AuthModel:
+    def login_user(self, email, password):
+        user = collection.find_one({"auth.email": email})
+        
+        if user and check_password_hash(user["auth"]["password"], password):
+            return user
+        else:
+            return None
+
+
 
 class SignupModel:
-    def __init__(self):
-        try:
-            self.con = mysql.connector.connect(
-                host="localhost",
-                user="root",
-                password="roott",
-                database="emc_project",
-                port="3306"
-            )
-            print("Connection successful")
-        except mysql.connector.Error as err:
-            print("Error:", err)
+    def register_user(self, auth_data):
+        # Check if the email already exists
+        if collection.find_one({"auth.email": auth_data["email"]}):
+            return {'error': 'Email already registered'}
 
+        # Hash the password
+        hashed_password = generate_password_hash(auth_data["password"], method='sha256')
 
+        # Create user document
+        user = {
+            "auth": {
+                "firstName": auth_data["firstName"],
+                "lastName": auth_data["lastName"],
+                "email": auth_data["email"],
+                "password": hashed_password,
+                "userName": auth_data["userName"],
+                "role": auth_data["role"],
+                "company": auth_data["company"],
+                "businessCategory": auth_data["businessCategory"],
+                "bundle": auth_data["bundle"]
+            },
+            "registrationDate": datetime.datetime.utcnow()
+        }
 
-    def register_user(self, username, email, password):
-        try:
-            cursor = self.con.cursor()
+        # Insert user document into the database
+        collection.insert_one(user)
+        return {'message': 'Registration successful'}
 
-        # Check if user already exists
-            query_check = "SELECT * FROM users WHERE username = %s"
-            cursor.execute(query_check, (username,))
-            existing_user = cursor.fetchone()
-
-            if existing_user:
-                return {"message": "Username already taken"}
-
-        # Hash the password using pbkdf2:sha256 method
-            hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
-
-        # Insert new user
-            query_insert = "INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s)"
-            values = (username, email, hashed_password)
-            cursor.execute(query_insert, values)
-            self.con.commit()
-
-            cursor.close()
-            response = {"message": "Registration successful"}
-            return response
-        except mysql.connector.Error as err:
-            print("Error:", err)
-            response = {"message": "An error occurred during registration"}
-            return response
-
- 
-
-
-
-
-    def login_user(self, username, password):
-        try:
-            cursor = self.con.cursor(dictionary=True)
-            query = "SELECT * FROM users WHERE username = %s"
-            cursor.execute(query, (username,))
-            user = cursor.fetchone()
-            cursor.close()
-
-            if user and check_password_hash(user["password_hash"], password):
-                response = {"message": "Login successful"}
-            else:
-                response = {"message": "Invalid credentials"}
-
-            return response
-        except mysql.connector.Error as err:
-            print("Error:", err)
-            response = {"message": "An error occurred during login"}
-            return response
-
-
-
-    def close_connection(self):
-        if hasattr(self, 'con') and self.con.is_connected():
-            self.con.close()
-            print("Connection closed")
